@@ -60,29 +60,52 @@ class ISurveyClient:
         res.raise_for_status()
         self._logged_in = True
 
-    def fetch_all_pages(self, date_from, date_to, report_type='enquiry'):
+    def get_report_page(self, params, timeout=60):
+        """Fetch a single report page. Auto re-login once on 401/403 or invalid
+        JSON (which usually means the session expired and iSurvey returned an
+        HTML login page instead of the expected JSON payload)."""
         self.login()
+
+        def _do_request():
+            res = self.session.get(
+                f'{BASE_URL}/report/get_data_report.php',
+                params=params,
+                timeout=timeout,
+            )
+            res.raise_for_status()
+            return res.json()
+
+        try:
+            return _do_request()
+        except requests.exceptions.HTTPError as e:
+            if e.response is None or e.response.status_code not in (401, 403):
+                raise
+            self._logged_in = False
+            self.login()
+            return _do_request()
+        except ValueError:
+            # JSONDecodeError — session likely expired and we got HTML back
+            self._logged_in = False
+            self.login()
+            return _do_request()
+
+    def fetch_all_pages(self, date_from, date_to, report_type='enquiry'):
         all_records = []
         page = 1
         start = 0
         limit = 200
 
         while True:
-            res = self.session.get(
-                f'{BASE_URL}/report/get_data_report.php',
-                params={
-                    'con_date': 2,
-                    'date_from': date_from,
-                    'date_to': date_to,
-                    'report_type': report_type,
-                    'page': page,
-                    'start': start,
-                    'limit': limit,
-                },
-                timeout=30,
-            )
-            res.raise_for_status()
-            body = res.json()
+            params = {
+                'con_date': 2,
+                'date_from': date_from,
+                'date_to': date_to,
+                'report_type': report_type,
+                'page': page,
+                'start': start,
+                'limit': limit,
+            }
+            body = self.get_report_page(params, timeout=30)
 
             if isinstance(body, dict):
                 records = body.get('arr_data', body.get('data', []))
@@ -258,35 +281,12 @@ def fetch_stream():
             }
 
             try:
-                res = client.session.get(
-                    f'{BASE_URL}/report/get_data_report.php',
-                    params=params,
-                    timeout=60,
-                )
-                res.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code in (401, 403):
-                    client._logged_in = False
-                    try:
-                        client.login()
-                        res = client.session.get(
-                            f'{BASE_URL}/report/get_data_report.php',
-                            params=params,
-                            timeout=60,
-                        )
-                        res.raise_for_status()
-                    except Exception as inner_e:
-                        yield f"event: error\ndata: {json.dumps({'error': str(inner_e)})}\n\n"
-                        return
-                else:
-                    yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
-                    return
+                body = client.get_report_page(params, timeout=60)
             except Exception as e:
                 client._logged_in = False
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
                 return
 
-            body = res.json()
             if isinstance(body, dict):
                 records = body.get('arr_data', body.get('data', []))
                 total = body.get('total', body.get('totalCount', 0))

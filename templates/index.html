@@ -6,6 +6,7 @@
     <title>SE Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-ui-dist/jquery-ui.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pivottable/dist/pivot.min.css">
@@ -135,7 +136,7 @@
         .btn-export:hover { background: #16a34a; }
 
         /* Content area */
-        .content { flex: 1; overflow: auto; padding: 16px 24px; }
+        .content { flex: 1; overflow: auto; padding: 16px 24px; display: flex; flex-direction: column; }
         #status { margin-bottom: 12px; font-size: 13px; color: #94a3b8; }
         #status.error { color: #f87171; }
 
@@ -217,14 +218,19 @@
         .filter-dropdown .fd-cancel:hover { background: #334155; color: #e2e8f0; }
 
         /* Dashboard */
-        #dashboardView { display: none; }
+        #dashboardView {
+            display: none;
+            flex: 1; min-height: 0;
+            flex-direction: column;
+        }
         .dash-cards {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 14px; margin-bottom: 20px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 8px; margin-bottom: 8px;
+            flex-shrink: 0;
         }
         .dash-card {
-            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-            padding: 20px; display: flex; align-items: center; gap: 16px;
+            background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+            padding: 10px 14px; display: flex; align-items: center; gap: 12px;
             border-left: 4px solid;
         }
         .dash-card.blue { border-left-color: #3b82f6; }
@@ -232,30 +238,36 @@
         .dash-card.amber { border-left-color: #f59e0b; }
         .dash-card.rose { border-left-color: #f43f5e; }
         .dash-card .card-icon {
-            width: 44px; height: 44px; border-radius: 10px; display: flex;
+            width: 34px; height: 34px; border-radius: 8px; display: flex;
             align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .dash-card .card-icon svg { width: 22px; height: 22px; }
+        .dash-card .card-icon svg { width: 18px; height: 18px; }
         .dash-card.blue .card-icon { background: rgba(59,130,246,0.15); color: #3b82f6; }
         .dash-card.green .card-icon { background: rgba(34,197,94,0.15); color: #22c55e; }
         .dash-card.amber .card-icon { background: rgba(245,158,11,0.15); color: #f59e0b; }
         .dash-card.rose .card-icon { background: rgba(244,63,94,0.15); color: #f43f5e; }
-        .dash-card .card-info { display: flex; flex-direction: column; }
-        .dash-card .card-value { font-size: 28px; font-weight: 800; color: #f1f5f9; line-height: 1.1; }
-        .dash-card .card-label { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .dash-card .card-info { display: flex; flex-direction: column; min-width: 0; }
+        .dash-card .card-value { font-size: 22px; font-weight: 800; color: #f1f5f9; line-height: 1.1; }
+        .dash-card .card-label { font-size: 11px; color: #64748b; margin-top: 2px; }
 
         .dash-charts {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+            display: grid; grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            flex: 1; min-height: 0;
         }
         .chart-card {
-            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-            padding: 16px 16px 8px;
+            background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+            padding: 8px 12px 4px;
+            display: flex; flex-direction: column;
+            min-height: 0;
         }
         .chart-card h4 {
-            font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 600;
+            font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 600;
             text-transform: uppercase; letter-spacing: 0.3px;
+            flex-shrink: 0;
         }
-        .chart-card .chart-wrap { position: relative; height: 300px; }
+        .chart-card .chart-wrap { position: relative; flex: 1; min-height: 0; }
         /* Pivot dark theme */
         #pivotView { overflow: auto; }
         #pivotOutput .pvtUi { color: #e2e8f0; background: transparent; border: none; }
@@ -410,7 +422,13 @@
             .btn-fetch, .btn-export { flex: 1; }
             .content { padding: 12px 16px; }
             table { display: block; overflow-x: auto; }
-            .dash-charts { grid-template-columns: 1fr; }
+            #dashboardView { flex: none; }
+            .dash-charts {
+                grid-template-columns: 1fr;
+                grid-template-rows: none;
+                flex: none;
+            }
+            .chart-card .chart-wrap { flex: none; height: 220px; }
             .dash-cards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
             .dash-card .card-value { font-size: 22px; }
         }
@@ -852,7 +870,7 @@
 
         function switchView(view) {
             tableView.style.display = view === 'table' ? 'block' : 'none';
-            dashboardView.style.display = view === 'dashboard' ? 'block' : 'none';
+            dashboardView.style.display = view === 'dashboard' ? 'flex' : 'none';
             pivotView.style.display = view === 'pivot' ? 'block' : 'none';
             if (view === 'dashboard' && lastRecords) buildDashboard();
             if (view === 'pivot' && lastRecords) buildPivot();
@@ -970,6 +988,13 @@
         const COLORS = ['#3b82f6','#22c55e','#f59e0b','#f43f5e','#a855f7','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
         let chartInstances = [];
 
+        // chartjs-plugin-datalabels v2 needs explicit registration. Disable
+        // globally and opt-in per chart via plugins.datalabels.display.
+        if (window.Chart && window.ChartDataLabels) {
+            Chart.register(window.ChartDataLabels);
+            Chart.defaults.set('plugins.datalabels', { display: false });
+        }
+
         const CARD_ICONS = {
             total: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>',
             completed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
@@ -1065,7 +1090,7 @@
                     maintainAspectRatio: false,
                     cutout: '60%',
                     plugins: {
-                        legend: { position: 'right', labels: { color: t.fg, font: { size: 12 } } },
+                        legend: { position: 'right', labels: { color: t.fg, font: { size: 10 }, boxWidth: 12, padding: 6 } },
                         tooltip: { backgroundColor: t.tooltipBg, titleColor: '#e2e8f0', bodyColor: '#e2e8f0' },
                     },
                 },
@@ -1073,13 +1098,14 @@
             chartInstances.push(chart);
         }
 
-        function createBar(container, title, labels, data) {
+        function createBar(container, title, labels, data, opts = {}) {
             const card = document.createElement('div');
             card.className = 'chart-card';
             card.innerHTML = `<h4>${title}</h4><div class="chart-wrap"><canvas></canvas></div>`;
             container.appendChild(card);
             const ctx = card.querySelector('canvas').getContext('2d');
             const t = themeColors();
+            const maxValue = data.length ? Math.max(...data) : 0;
             const chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1096,13 +1122,26 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: opts.showLabels ? { padding: { right: 32 } } : {},
                     plugins: {
                         legend: { display: false },
                         tooltip: { backgroundColor: t.tooltipBg, titleColor: '#e2e8f0', bodyColor: '#e2e8f0' },
+                        datalabels: opts.showLabels ? {
+                            display: true,
+                            color: t.fg,
+                            anchor: 'end',
+                            align: 'end',
+                            font: { size: 10, weight: 'bold' },
+                            formatter: (v) => Number(v).toLocaleString(),
+                        } : { display: false },
                     },
                     scales: {
-                        x: { ticks: { color: t.fg }, grid: { color: t.grid } },
-                        y: { ticks: { color: t.fg }, grid: { display: false } },
+                        x: {
+                            ticks: { color: t.fg, font: { size: 10 } },
+                            grid: { color: t.grid },
+                            suggestedMax: opts.showLabels ? Math.ceil(maxValue * 1.1) : undefined,
+                        },
+                        y: { ticks: { color: t.fg, font: { size: 12 } }, grid: { display: false } },
                     },
                 },
             });
@@ -1126,7 +1165,7 @@
                         labels: {
                             display: true,
                             color: '#fff',
-                            font: { size: 12 },
+                            font: { size: 10 },
                             formatter: (c) => c.raw._data.label,
                         },
                         backgroundColor: (c) => c.type === 'data' ? COLORS[c.dataIndex % COLORS.length] : 'transparent',
@@ -1173,17 +1212,17 @@
                 addCard(cards, avgTravelTime(records), 'Avg Travel Time', 'rose', 'time');
 
                 const s1 = countBy(records, 'stt_desc');
-                createBar(charts, 'สถานะงาน', s1.labels, s1.data);
+                createBar(charts, 'สถานะงาน', s1.labels, s1.data, { showLabels: true });
                 const s2 = countBy(records, 'acc_province', 10);
-                createBar(charts, 'จังหวัดที่เกิดเหตุ (Top 10)', s2.labels, s2.data);
-                const s3 = countBy(records, 'claim_Type');
-                createDonut(charts, 'ประเภทเคลม', s3.labels, s3.data);
+                createBar(charts, 'จังหวัดที่เกิดเหตุ', s2.labels, s2.data);
+                const s3 = countBy(records, 'checkByName', 10);
+                createBar(charts, 'ผู้ตรวจสอบงาน', s3.labels, s3.data, { showLabels: true });
                 const s4 = countBy(records, 'acc_zone');
                 createDonut(charts, 'เขตพื้นที่', s4.labels, s4.data);
                 const s5 = countBy(records, 'branch', 10);
-                createBar(charts, 'ศูนย์ (Top 10)', s5.labels, s5.data);
+                createBar(charts, 'ศูนย์', s5.labels, s5.data);
                 const s6 = countBy(records, 'empcode', 10);
-                createTreemap(charts, 'พนักงานตรวจสอบ (Top 10)', s6.labels, s6.data);
+                createTreemap(charts, 'พนักงานตรวจสอบ', s6.labels, s6.data);
             } else {
                 const sent = records.filter(r => r.sendReport_dt && String(r.sendReport_dt).trim()).length;
                 addCard(cards, records.length, 'Total Closed', 'blue', 'total');
@@ -1191,11 +1230,11 @@
                 addCard(cards, sent, 'Reports Sent', 'amber', 'sent');
 
                 const c1 = countBy(records, 'empname', 10);
-                createBar(charts, 'ผู้ปิดงาน (Top 10)', c1.labels, c1.data);
+                createBar(charts, 'ผู้ปิดงาน', c1.labels, c1.data);
                 const c2 = countBy(records, 'notified_name', 10);
-                createBar(charts, 'ผู้รับแจ้ง (Top 10)', c2.labels, c2.data);
+                createBar(charts, 'ผู้รับแจ้ง', c2.labels, c2.data);
                 const c3 = countBy(records, 'acc_place', 10);
-                createTreemap(charts, 'สถานที่เกิดเหตุ (Top 10)', c3.labels, c3.data);
+                createTreemap(charts, 'สถานที่เกิดเหตุ', c3.labels, c3.data);
             }
         }
 

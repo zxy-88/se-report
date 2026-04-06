@@ -8,7 +8,7 @@
 | --------- | ----------------------------------------- |
 | Backend   | Python 3.13 / Flask                       |
 | Frontend  | Vanilla HTML + CSS + JavaScript           |
-| Charts    | Chart.js v4 (+ chartjs-chart-treemap) + Plotly.js |
+| Charts    | Chart.js v4 (+ chartjs-chart-treemap, chartjs-plugin-datalabels) + Plotly.js |
 | Pivot     | PivotTable.js + jQuery                    |
 | Export    | SheetJS (xlsx)                             |
 | Deploy    | Docker + Gunicorn                         |
@@ -31,9 +31,10 @@
 
 ### Dashboard View
 - **Summary Cards** — จำนวนเคลมทั้งหมด, เสร็จแล้ว, รอดำเนินการ, เวลาเดินทางเฉลี่ย
-- **Donut Charts** — ประเภทเคลม, เขตพื้นที่
-- **Bar Charts** — สถานะงาน, จังหวัดที่เกิดเหตุ Top 10, ศูนย์ Top 10
-- **Treemap** — พนักงานตรวจสอบ Top 10
+- **Bar Charts** — สถานะงาน (พร้อม data label), ผู้ตรวจสอบงาน (พร้อม data label), จังหวัดที่เกิดเหตุ, ศูนย์
+- **Donut Chart** — เขตพื้นที่
+- **Treemap** — พนักงานตรวจสอบ
+- **Fit-to-viewport layout** — flex grid 2×3 ปรับขนาด chart อัตโนมัติให้เห็นทั้ง dashboard ในหน้าจอเดียวโดยไม่ต้อง zoom out
 - Dashboard สะท้อน column filter ที่ตั้งไว้แบบ real-time
 - Chart.js repaint อัตโนมัติเมื่อสลับธีมสว่าง/มืด
 
@@ -121,3 +122,7 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] ปรับขนาดตัวอักษร (A-/A+)
 - [x] Migrate dashboard charts จาก ApexCharts → Chart.js v4 (+ chartjs-chart-treemap plugin)
 - [x] เปลี่ยน chart "สถานะงาน" จาก Donut เป็น Bar แนวนอน
+- [x] เพิ่ม chartjs-plugin-datalabels แสดงตัวเลขปลายแท่งใน chart "สถานะงาน" และ "ผู้ตรวจสอบงาน"
+- [x] เปลี่ยน chart "ประเภทเคลม" (Donut) เป็น "ผู้ตรวจสอบงาน" (Bar) พร้อม data label
+- [x] Auto re-login เมื่อ iSurvey session หมดอายุระหว่างดึงข้อมูล (จับ JSON parse error)
+- [x] ปรับ Dashboard layout เป็น fit-to-viewport (flex grid) ให้เห็นทั้งหน้าโดยไม่ต้อง scroll/zoom
