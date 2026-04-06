@@ -8,7 +8,7 @@
 | --------- | ----------------------------------------- |
 | Backend   | Python 3.13 / Flask                       |
 | Frontend  | Vanilla HTML + CSS + JavaScript           |
-| Charts    | ApexCharts + Plotly.js                    |
+| Charts    | Chart.js v4 (+ chartjs-chart-treemap) + Plotly.js |
 | Pivot     | PivotTable.js + jQuery                    |
 | Export    | SheetJS (xlsx)                             |
 | Deploy    | Docker + Gunicorn                         |
@@ -31,10 +31,11 @@
 
 ### Dashboard View
 - **Summary Cards** — จำนวนเคลมทั้งหมด, เสร็จแล้ว, รอดำเนินการ, เวลาเดินทางเฉลี่ย
-- **Donut Charts** — สถานะงาน, ประเภทเคลม, เขตพื้นที่
-- **Bar Charts** — จังหวัดที่เกิดเหตุ Top 10, ศูนย์ Top 10
+- **Donut Charts** — ประเภทเคลม, เขตพื้นที่
+- **Bar Charts** — สถานะงาน, จังหวัดที่เกิดเหตุ Top 10, ศูนย์ Top 10
 - **Treemap** — พนักงานตรวจสอบ Top 10
 - Dashboard สะท้อน column filter ที่ตั้งไว้แบบ real-time
+- Chart.js repaint อัตโนมัติเมื่อสลับธีมสว่าง/มืด
 
 ### Pivot View
 - PivotTable.js พร้อม drag & drop fields
@@ -118,3 +119,5 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] Gunicorn timeout 600s สำหรับ Docker
 - [x] Theme toggle (สว่าง/มืด)
 - [x] ปรับขนาดตัวอักษร (A-/A+)
+- [x] Migrate dashboard charts จาก ApexCharts → Chart.js v4 (+ chartjs-chart-treemap plugin)
+- [x] เปลี่ยน chart "สถานะงาน" จาก Donut เป็น Bar แนวนอน

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SE Report</title>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.1"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jquery-ui-dist/jquery-ui.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pivottable/dist/pivot.min.css">
@@ -254,6 +255,7 @@
             font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 600;
             text-transform: uppercase; letter-spacing: 0.3px;
         }
+        .chart-card .chart-wrap { position: relative; height: 300px; }
         /* Pivot dark theme */
         #pivotView { overflow: auto; }
         #pivotOutput .pvtUi { color: #e2e8f0; background: transparent; border: none; }
@@ -277,6 +279,8 @@
         #pivotOutput table.pvtTable thead th {
             background: #334155; color: #94a3b8; border: 1px solid #475569;
             padding: 6px 10px; font-weight: 600;
+            white-space: normal; word-break: break-word; max-width: 140px;
+            line-height: 1.25; vertical-align: middle;
         }
         #pivotOutput table.pvtTable tbody td {
             background: #0f172a; color: #cbd5e1; border: 1px solid #1e293b; padding: 6px 10px;
@@ -299,6 +303,22 @@
         }
         #pivotOutput .pvtCheckContainer label { color: #cbd5e1; }
         #pivotOutput .pvtRendererArea { padding: 0; }
+
+        /* Floating sticky horizontal scrollbar for pivot */
+        #pivotHScroll {
+            position: fixed;
+            height: 14px;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            background: #0f172a;
+            z-index: 100;
+            display: none;
+        }
+        #pivotHScroll > div { height: 1px; }
+        body.light #pivotHScroll { background: #f1f5f9; }
+        /* Hide the native scrollbar of #pivotView (floating one above replaces it) */
+        #pivotView { scrollbar-width: none; }
+        #pivotView::-webkit-scrollbar { display: none; }
 
         /* Theme & Font controls */
         .toolbar-controls {
@@ -518,6 +538,7 @@
 
         document.getElementById('themeToggle').addEventListener('click', () => {
             applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+            if (typeof dashboardView !== 'undefined' && dashboardView.style.display !== 'none' && lastRecords) buildDashboard();
         });
 
         // ========== FONT SIZE ==========
@@ -835,7 +856,81 @@
             pivotView.style.display = view === 'pivot' ? 'block' : 'none';
             if (view === 'dashboard' && lastRecords) buildDashboard();
             if (view === 'pivot' && lastRecords) buildPivot();
+            updatePivotHScroll();
         }
+
+        // ========== STICKY HORIZONTAL SCROLLBAR (PIVOT) ==========
+        let pivotHScrollSyncing = false;
+        let pivotHScrollTarget = null;
+        function findPivotScrollTarget() {
+            // Walk up from #pivotOutput to find the first ancestor that actually scrolls horizontally
+            let el = document.getElementById('pivotOutput');
+            while (el && el !== document.body) {
+                if (el.scrollWidth > el.clientWidth + 1) {
+                    const ovX = getComputedStyle(el).overflowX;
+                    if (ovX === 'auto' || ovX === 'scroll') return el;
+                }
+                el = el.parentElement;
+            }
+            return null;
+        }
+        function ensurePivotHScroll() {
+            let bar = document.getElementById('pivotHScroll');
+            if (bar) return bar;
+            bar = document.createElement('div');
+            bar.id = 'pivotHScroll';
+            bar.appendChild(document.createElement('div'));
+            document.body.appendChild(bar);
+            bar.addEventListener('scroll', () => {
+                if (pivotHScrollSyncing || !pivotHScrollTarget) return;
+                pivotHScrollSyncing = true;
+                pivotHScrollTarget.scrollLeft = bar.scrollLeft;
+                pivotHScrollSyncing = false;
+            });
+            window.addEventListener('resize', updatePivotHScroll);
+            return bar;
+        }
+        function attachPivotScrollListener(target) {
+            if (!target || target._pivotHScrollAttached) return;
+            target._pivotHScrollAttached = true;
+            target.addEventListener('scroll', () => {
+                if (pivotHScrollSyncing) return;
+                const bar = document.getElementById('pivotHScroll');
+                if (!bar) return;
+                pivotHScrollSyncing = true;
+                bar.scrollLeft = target.scrollLeft;
+                pivotHScrollSyncing = false;
+            });
+        }
+        function updatePivotHScroll() {
+            const pv = document.getElementById('pivotView');
+            const bar = document.getElementById('pivotHScroll');
+            if (!pv || pv.style.display === 'none') {
+                if (bar) bar.style.display = 'none';
+                return;
+            }
+            const target = findPivotScrollTarget();
+            if (!target) {
+                if (bar) bar.style.display = 'none';
+                return;
+            }
+            pivotHScrollTarget = target;
+            attachPivotScrollListener(target);
+            const b = ensurePivotHScroll();
+            const rect = target.getBoundingClientRect();
+            const visibleBottom = Math.min(rect.bottom, window.innerHeight);
+            b.style.left = rect.left + 'px';
+            b.style.top = (visibleBottom - 14) + 'px';
+            b.style.width = Math.min(rect.width, window.innerWidth - rect.left) + 'px';
+            b.firstChild.style.width = target.scrollWidth + 'px';
+            b.scrollLeft = target.scrollLeft;
+            b.style.display = 'block';
+        }
+        // Re-measure after pivot DOM mutations (drag, expand, render)
+        const _pivotObserver = new MutationObserver(() => {
+            requestAnimationFrame(updatePivotHScroll);
+        });
+        _pivotObserver.observe(document.getElementById('pivotOutput'), { childList: true, subtree: true });
 
         document.querySelectorAll('input[name=view]').forEach(radio => {
             radio.addEventListener('change', (e) => switchView(e.target.value));
@@ -904,6 +999,16 @@
             }
         }
 
+        function themeColors() {
+            const light = document.body.classList.contains('light');
+            return {
+                fg: light ? '#334155' : '#94a3b8',
+                cardBg: light ? '#ffffff' : '#1e293b',
+                grid: light ? '#e2e8f0' : '#334155',
+                tooltipBg: light ? '#1e293b' : '#0f172a',
+            };
+        }
+
         function destroyCharts() { chartInstances.forEach(c => c.destroy()); chartInstances = []; }
 
         function countBy(records, key, top) {
@@ -940,57 +1045,113 @@
         function createDonut(container, title, labels, data) {
             const card = document.createElement('div');
             card.className = 'chart-card';
-            card.innerHTML = `<h4>${title}</h4><div></div>`;
+            card.innerHTML = `<h4>${title}</h4><div class="chart-wrap"><canvas></canvas></div>`;
             container.appendChild(card);
-            const chart = new ApexCharts(card.lastChild, {
-                chart: { type: 'donut', height: 300, background: 'transparent', foreColor: '#94a3b8' },
-                series: data, labels,
-                colors: COLORS.slice(0, data.length),
-                legend: { position: 'right', fontSize: '12px', labels: { colors: '#94a3b8' } },
-                dataLabels: { enabled: false },
-                stroke: { width: 2, colors: ['#1e293b'] },
-                plotOptions: { pie: { donut: { size: '60%' } } },
-                tooltip: { theme: 'dark' },
-                theme: { mode: 'dark' },
+            const ctx = card.querySelector('canvas').getContext('2d');
+            const t = themeColors();
+            const chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: COLORS.slice(0, data.length),
+                        borderColor: t.cardBg,
+                        borderWidth: 2,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { position: 'right', labels: { color: t.fg, font: { size: 12 } } },
+                        tooltip: { backgroundColor: t.tooltipBg, titleColor: '#e2e8f0', bodyColor: '#e2e8f0' },
+                    },
+                },
             });
-            chart.render(); chartInstances.push(chart);
+            chartInstances.push(chart);
         }
 
         function createBar(container, title, labels, data) {
             const card = document.createElement('div');
             card.className = 'chart-card';
-            card.innerHTML = `<h4>${title}</h4><div></div>`;
+            card.innerHTML = `<h4>${title}</h4><div class="chart-wrap"><canvas></canvas></div>`;
             container.appendChild(card);
-            const chart = new ApexCharts(card.lastChild, {
-                chart: { type: 'bar', height: 300, background: 'transparent', foreColor: '#94a3b8', toolbar: { show: true } },
-                series: [{ name: 'จำนวน', data }],
-                xaxis: { categories: labels },
-                plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '65%' } },
-                colors: ['#3b82f6'],
-                dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
-                grid: { borderColor: '#334155', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
-                tooltip: { theme: 'dark' },
-                theme: { mode: 'dark' },
+            const ctx = card.querySelector('canvas').getContext('2d');
+            const t = themeColors();
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'จำนวน',
+                        data,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        barPercentage: 0.75,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: t.tooltipBg, titleColor: '#e2e8f0', bodyColor: '#e2e8f0' },
+                    },
+                    scales: {
+                        x: { ticks: { color: t.fg }, grid: { color: t.grid } },
+                        y: { ticks: { color: t.fg }, grid: { display: false } },
+                    },
+                },
             });
-            chart.render(); chartInstances.push(chart);
+            chartInstances.push(chart);
         }
 
         function createTreemap(container, title, labels, data) {
             const card = document.createElement('div');
             card.className = 'chart-card';
-            card.innerHTML = `<h4>${title}</h4><div></div>`;
+            card.innerHTML = `<h4>${title}</h4><div class="chart-wrap"><canvas></canvas></div>`;
             container.appendChild(card);
-            const series = labels.map((l, i) => ({ x: l, y: data[i] }));
-            const chart = new ApexCharts(card.lastChild, {
-                chart: { type: 'treemap', height: 300, background: 'transparent', foreColor: '#94a3b8', toolbar: { show: false } },
-                series: [{ data: series }],
-                colors: COLORS,
-                plotOptions: { treemap: { distributed: true, enableShades: false } },
-                dataLabels: { enabled: true, style: { fontSize: '12px' } },
-                tooltip: { theme: 'dark' },
-                theme: { mode: 'dark' },
+            const ctx = card.querySelector('canvas').getContext('2d');
+            const t = themeColors();
+            const tree = labels.map((l, i) => ({ label: l, value: data[i] }));
+            const chart = new Chart(ctx, {
+                type: 'treemap',
+                data: {
+                    datasets: [{
+                        tree,
+                        key: 'value',
+                        labels: {
+                            display: true,
+                            color: '#fff',
+                            font: { size: 12 },
+                            formatter: (c) => c.raw._data.label,
+                        },
+                        backgroundColor: (c) => c.type === 'data' ? COLORS[c.dataIndex % COLORS.length] : 'transparent',
+                        borderColor: t.cardBg,
+                        borderWidth: 1,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: t.tooltipBg,
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            callbacks: {
+                                title: (items) => items[0].raw._data.label,
+                                label: (item) => 'จำนวน: ' + item.raw.v,
+                            },
+                        },
+                    },
+                },
             });
-            chart.render(); chartInstances.push(chart);
+            chartInstances.push(chart);
         }
 
         function buildDashboard() {
@@ -1012,7 +1173,7 @@
                 addCard(cards, avgTravelTime(records), 'Avg Travel Time', 'rose', 'time');
 
                 const s1 = countBy(records, 'stt_desc');
-                createDonut(charts, 'สถานะงาน', s1.labels, s1.data);
+                createBar(charts, 'สถานะงาน', s1.labels, s1.data);
                 const s2 = countBy(records, 'acc_province', 10);
                 createBar(charts, 'จังหวัดที่เกิดเหตุ (Top 10)', s2.labels, s2.data);
                 const s3 = countBy(records, 'claim_Type');
