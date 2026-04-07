@@ -18,7 +18,7 @@
 
 ### Data Fetching
 - เชื่อมต่อ iSurvey API ดึงข้อมูลรายงานแบบ pagination อัตโนมัติ
-- รองรับ 2 ประเภทรายงาน: **Enquiry** (รายงานเซอร์เวย์) และ **Close Claim** (ปิดเคลม)
+- รองรับ 3 ประเภทรายงาน: **Enquiry** (รายงานเซอร์เวย์), **Close Claim** (ปิดเคลม), **Claim Report** (รายงานเคลมพร้อมค่าใช้จ่าย)
 - เลือกช่วงวันที่ (date range) ได้
 - **SSE Streaming** — แสดง progress bar real-time ระหว่างดึงข้อมูล พร้อมปุ่ม Cancel
 - **Auto retry** — retry อัตโนมัติ 3 ครั้งเมื่อเจอ server error (502/503/504)
@@ -30,10 +30,25 @@
 - ค้นหาค่าใน filter dropdown ได้
 
 ### Dashboard View
-- **Summary Cards** — จำนวนเคลมทั้งหมด, เสร็จแล้ว, รอดำเนินการ, เวลาเดินทางเฉลี่ย
-- **Bar Charts** — สถานะงาน (พร้อม data label), ผู้ตรวจสอบงาน (พร้อม data label), จังหวัดที่เกิดเหตุ, ศูนย์
-- **Donut Chart** — เขตพื้นที่
-- **Treemap** — พนักงานตรวจสอบ
+Dashboard ปรับ chart ให้เหมาะสมตามประเภทรายงาน
+
+**Enquiry**
+- Cards: Total Claims / Completed / Pending / Avg Travel Time
+- Bar: สถานะงาน (data label), ผู้ตรวจสอบงาน (data label), จังหวัดที่เกิดเหตุ, ศูนย์
+- Donut: เขตพื้นที่
+- Treemap: พนักงานตรวจสอบ
+
+**Claim Report**
+- Cards: Total Claims / Total Cost / Avg Cost / Closed Cases
+- Bar: สถานะเคส (data label), พนักงานตรวจสอบ (data label), ประเภทเคลม, จังหวัดที่ออกตรวจสอบ
+- Donut: เขตพื้นที่
+- Treemap: ประเภทเหตุ
+
+**Close Claim**
+- Cards: Total Closed / Avg Travel Time / Reports Sent
+- Bar: ผู้ปิดงาน, ผู้รับแจ้ง
+- Treemap: สถานที่เกิดเหตุ
+
 - **Fit-to-viewport layout** — flex grid 2×3 ปรับขนาด chart อัตโนมัติให้เห็นทั้ง dashboard ในหน้าจอเดียวโดยไม่ต้อง zoom out
 - Dashboard สะท้อน column filter ที่ตั้งไว้แบบ real-time
 - Chart.js repaint อัตโนมัติเมื่อสลับธีมสว่าง/มืด
@@ -108,7 +123,7 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] Frontend table view พร้อม column toggle
 - [x] Column filter (search + checkbox per column)
 - [x] Dashboard view (summary cards + charts)
-- [x] รองรับ 2 ประเภทรายงาน (Enquiry / Close Claim)
+- [x] รองรับ 3 ประเภทรายงาน (Enquiry / Close Claim / Claim Report)
 - [x] Basic Authentication
 - [x] Docker support
 - [x] Export ข้อมูลเป็น Excel (.xlsx) พร้อม text format สำหรับเลขเคลม
@@ -126,3 +141,4 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] เปลี่ยน chart "ประเภทเคลม" (Donut) เป็น "ผู้ตรวจสอบงาน" (Bar) พร้อม data label
 - [x] Auto re-login เมื่อ iSurvey session หมดอายุระหว่างดึงข้อมูล (จับ JSON parse error)
 - [x] ปรับ Dashboard layout เป็น fit-to-viewport (flex grid) ให้เห็นทั้งหน้าโดยไม่ต้อง scroll/zoom
+- [x] เพิ่มประเภทรายงาน "Claim Report" (40 fields) พร้อม dashboard เฉพาะ (Total Cost, Avg Cost, สถานะเคส, ฯลฯ)

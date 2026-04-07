@@ -472,6 +472,8 @@
                     <label for="rt_enquiry">Enquiry</label>
                     <input type="radio" name="report_type" value="closeClaim" id="rt_close">
                     <label for="rt_close">Close Claim</label>
+                    <input type="radio" name="report_type" value="claim" id="rt_claim">
+                    <label for="rt_claim">Claim Report</label>
                 </div>
                 <button type="submit" class="btn-fetch" id="submitBtn">Fetch</button>
             </form>
@@ -1060,6 +1062,22 @@
             return h > 0 ? `${h}h ${m}m` : `${m}m`;
         }
 
+        function sumNumeric(records, key) {
+            let total = 0;
+            records.forEach(r => {
+                const v = parseFloat(r[key]);
+                if (!isNaN(v)) total += v;
+            });
+            return total;
+        }
+
+        function fmtMoney(n) {
+            if (!n) return '0';
+            if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+            return Math.round(n).toLocaleString();
+        }
+
         function addCard(container, value, label, color, icon) {
             const card = document.createElement('div');
             card.className = `dash-card ${color}`;
@@ -1223,6 +1241,27 @@
                 createBar(charts, 'ศูนย์', s5.labels, s5.data);
                 const s6 = countBy(records, 'empcode', 10);
                 createTreemap(charts, 'พนักงานตรวจสอบ', s6.labels, s6.data);
+            } else if (rt === 'claim') {
+                const closed = records.filter(r => r.close_dt && String(r.close_dt).trim()).length;
+                const totalCost = sumNumeric(records, 'D_TOTAL_COST');
+                const avgCost = records.length ? totalCost / records.length : 0;
+                addCard(cards, records.length, 'Total Claims', 'blue', 'total');
+                addCard(cards, fmtMoney(totalCost), 'Total Cost (฿)', 'green', 'completed');
+                addCard(cards, fmtMoney(avgCost), 'Avg Cost (฿)', 'amber', 'pending');
+                addCard(cards, closed, 'Closed Cases', 'rose', 'sent');
+
+                const k1 = countBy(records, 'sttcase_ID');
+                createBar(charts, 'สถานะเคส', k1.labels, k1.data, { showLabels: true });
+                const k2 = countBy(records, 'empName', 10);
+                createBar(charts, 'พนักงานตรวจสอบ', k2.labels, k2.data, { showLabels: true });
+                const k3 = countBy(records, 'claim_Type');
+                createBar(charts, 'ประเภทเคลม', k3.labels, k3.data);
+                const k4 = countBy(records, 'acc_zone');
+                createDonut(charts, 'เขตพื้นที่', k4.labels, k4.data);
+                const k5 = countBy(records, 'survey_province_th', 10);
+                createBar(charts, 'จังหวัดที่ออกตรวจสอบ', k5.labels, k5.data);
+                const k6 = countBy(records, 'acc_type_desc', 10);
+                createTreemap(charts, 'ประเภทเหตุ', k6.labels, k6.data);
             } else {
                 const sent = records.filter(r => r.sendReport_dt && String(r.sendReport_dt).trim()).length;
                 addCard(cards, records.length, 'Total Closed', 'blue', 'total');
