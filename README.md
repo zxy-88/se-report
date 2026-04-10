@@ -30,28 +30,32 @@
 - ค้นหาค่าใน filter dropdown ได้
 
 ### Dashboard View
-Dashboard ปรับ chart ให้เหมาะสมตามประเภทรายงาน
 
-**Enquiry**
-- Cards: Total Claims / Completed / Pending / Avg Travel Time
-- Bar: สถานะงาน (data label), ผู้ตรวจสอบงาน (data label), จังหวัดที่เกิดเหตุ, ศูนย์
-- Donut: เขตพื้นที่
-- Treemap: พนักงานตรวจสอบ
+**Data Pipeline (ก่อนแสดงผล)**
+1. **Dedup** — ลบแถวซ้ำอัตโนมัติ (key: `survey_no` → `notify_no` → `claim_no`) เก็บแถวที่มีข้อมูลครบที่สุด
+2. **Fill Supervisor** — เติมชื่อผู้ตรวจสอบงาน (`checkByName`) อัตโนมัติ:
+   - เลขเซอร์เวย์ขึ้นต้น `SEMS` / `SETP` → บังคับเป็น "นายสราวุธ บุญคุ้ม" (ไม่สน mapping)
+   - เลขเซอร์เวย์ขึ้นต้น `SEABI` / `SESV` หรืออื่น ๆ → ใช้ค่าจากรายงาน หรือค้นหาจาก `mapping_supervisor_staff_.json`
+3. **Mapping file** — `mapping_supervisor_staff_.json` เก็บ Supervisor → Staff list ใช้ reverse lookup เมื่อรายงานยังไม่มีชื่อผู้ตรวจสอบงาน
 
-**Claim Report**
-- Cards: Total Claims / Total Cost / Avg Cost / Closed Cases
-- Bar: สถานะเคส (data label), พนักงานตรวจสอบ (data label), ประเภทเคลม, จังหวัดที่ออกตรวจสอบ
-- Donut: เขตพื้นที่
-- Treemap: ประเภทเหตุ
+**Enquiry Dashboard**
+- **Summary Cards:**
+  - Total Claims — นับทุกสถานะ ยกเว้น "ยกเลิกเคลม"
+  - Completed — เฉพาะสถานะ "จบงาน"
+  - Pending — ทุกสถานะ ยกเว้น "จบงาน" และ "ยกเลิกเคลม"
+- **Inspector Cards** — แสดงรายชื่อผู้ตรวจสอบงาน + จำนวนเรื่อง (เรียงมากไปน้อย)
 
-**Close Claim**
+**Claim Report Dashboard**
+- Cards: Total Claims / Total Cost (฿) / Avg Cost (฿) / Closed Cases
+
+**Close Claim Dashboard**
 - Cards: Total Closed / Avg Travel Time / Reports Sent
-- Bar: ผู้ปิดงาน, ผู้รับแจ้ง
-- Treemap: สถานที่เกิดเหตุ
 
-- **Fit-to-viewport layout** — flex grid 2×3 ปรับขนาด chart อัตโนมัติให้เห็นทั้ง dashboard ในหน้าจอเดียวโดยไม่ต้อง zoom out
-- Dashboard สะท้อน column filter ที่ตั้งไว้แบบ real-time
-- Chart.js repaint อัตโนมัติเมื่อสลับธีมสว่าง/มืด
+**Layout & UI**
+- DASHBOARD header + นาฬิกา realtime (อัพเดททุกวินาที)
+- Sidebar ซ่อนอัตโนมัติเมื่อดู Dashboard/Pivot แสดงเมื่อกลับ Table
+- Auto Refresh checkbox — ดึงข้อมูลใหม่ทุก 5 นาที
+- Responsive — font/icon ย่อขยายตาม viewport ด้วย `clamp()`
 
 ### Pivot View
 - PivotTable.js พร้อม drag & drop fields
@@ -78,14 +82,15 @@ Dashboard ปรับ chart ให้เหมาะสมตามประเ
 
 ```
 se-report/
-├── app.py              # Flask backend + iSurvey API client + SSE streaming
+├── app.py                          # Flask backend + iSurvey API client + SSE streaming
+├── mapping_supervisor_staff_.json  # Supervisor → Staff mapping (reverse lookup)
 ├── templates/
-│   └── index.html      # Frontend (UI + Charts + Pivot + Filters)
-├── requirements.txt    # Python dependencies
-├── Dockerfile          # Docker image build (Gunicorn timeout 600s)
+│   └── index.html                  # Frontend (UI + Dashboard + Pivot + Filters)
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Docker image build (Gunicorn timeout 600s)
 ├── .dockerignore
 ├── .gitignore
-└── .env                # Environment variables (not tracked)
+└── .env                            # Environment variables (not tracked)
 ```
 
 ## Setup
@@ -142,3 +147,11 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] Auto re-login เมื่อ iSurvey session หมดอายุระหว่างดึงข้อมูล (จับ JSON parse error)
 - [x] ปรับ Dashboard layout เป็น fit-to-viewport (flex grid) ให้เห็นทั้งหน้าโดยไม่ต้อง scroll/zoom
 - [x] เพิ่มประเภทรายงาน "Claim Report" (40 fields) พร้อม dashboard เฉพาะ (Total Cost, Avg Cost, สถานะเคส, ฯลฯ)
+- [x] Dedup ลบแถวซ้ำอัตโนมัติ (key: survey_no → notify_no → claim_no) เก็บแถวที่มีข้อมูลครบที่สุด
+- [x] Fill Supervisor จาก mapping_supervisor_staff_.json (reverse lookup staff → supervisor)
+- [x] เงื่อนไข survey_no: SEMS/SETP → นายสราวุธ บุญคุ้ม, SEABI/SESV → ใช้ข้อมูลจริงหรือ mapping
+- [x] Dashboard cards กรองตามสถานะงาน (ยกเว้นยกเลิกเคลม, Completed=จบงาน)
+- [x] Inspector Cards แสดงรายชื่อผู้ตรวจสอบงาน + จำนวนเรื่อง
+- [x] Dashboard header + นาฬิกา realtime, ซ่อน sidebar อัตโนมัติ
+- [x] Auto Refresh ดึงข้อมูลใหม่ทุก 5 นาที
+- [x] Responsive toolbar + dashboard (clamp font/icon ตาม viewport)

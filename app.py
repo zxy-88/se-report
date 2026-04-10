@@ -242,11 +242,22 @@ COLUMN_MAP = {
 app = Flask(__name__)
 client = ISurveyClient()
 
+# Build reverse lookup: staff name → supervisor name
+_mapping_path = os.path.join(os.path.dirname(__file__), 'mapping_supervisor_staff_.json')
+STAFF_SUPERVISOR_MAP = {}
+if os.path.exists(_mapping_path):
+    with open(_mapping_path, encoding='utf-8') as f:
+        _mapping = json.load(f)
+    for supervisor, staff_list in _mapping.items():
+        for staff in staff_list:
+            STAFF_SUPERVISOR_MAP[staff.strip()] = supervisor.strip()
+
 
 @app.route('/')
 @check_basic_auth
 def index():
-    return render_template('index.html', column_map=COLUMN_MAP)
+    return render_template('index.html', column_map=COLUMN_MAP,
+                           staff_supervisor_map=STAFF_SUPERVISOR_MAP)
 
 
 @app.route('/fetch', methods=['POST'])
