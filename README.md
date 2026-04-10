@@ -43,7 +43,9 @@
   - Total Claims — นับทุกสถานะ ยกเว้น "ยกเลิกเคลม"
   - Completed — เฉพาะสถานะ "จบงาน"
   - Pending — ทุกสถานะ ยกเว้น "จบงาน" และ "ยกเลิกเคลม"
-- **Inspector Cards** — แสดงรายชื่อผู้ตรวจสอบงาน + จำนวนเรื่อง (เรียงมากไปน้อย)
+- **Inspector Cards** — แสดงรายชื่อผู้ตรวจสอบงาน (เรียงมากไปน้อย) แต่ละคนแสดง:
+  - Total Claims / Completed / Pending (กรองตาม stt_desc เหมือน Summary Cards)
+  - การ์ด "(ว่าง)" แสดงรายชื่อพนักงานตรวจสอบ + จำนวนเรื่องแต่ละคน
 
 **Claim Report Dashboard**
 - Cards: Total Claims / Total Cost (฿) / Avg Cost (฿) / Closed Cases

@@ -1336,18 +1336,71 @@
             const inspectorContainer = document.getElementById('inspectorCards');
             inspectorContainer.innerHTML = '';
             const inspectorKey = rt === 'claim' ? 'empName' : rt === 'closeClaim' ? 'empname' : 'checkByName';
-            const inspectors = countBy(records, inspectorKey);
-            if (inspectors.labels.length > 0) {
-                const grid = document.createElement('div');
-                grid.className = 'inspector-grid';
-                inspectors.labels.forEach((name, i) => {
-                    const card = document.createElement('div');
-                    card.className = 'inspector-card';
-                    card.innerHTML = `<span class="inspector-name" title="${name}">${name}</span><span class="inspector-badge">${inspectors.data[i]}</span>`;
-                    grid.appendChild(card);
-                });
-                inspectorContainer.appendChild(grid);
-            }
+            const staffKey = rt === 'claim' ? 'empName' : 'empcode';
+
+            // Group records by supervisor
+            const groups = {};
+            records.forEach(r => {
+                const sup = String(r[inspectorKey] || '').trim() || '(ว่าง)';
+                if (!groups[sup]) groups[sup] = [];
+                groups[sup].push(r);
+            });
+
+            // Sort by count descending
+            const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+
+            const grid = document.createElement('div');
+            grid.className = 'inspector-grid';
+
+            sorted.forEach(([name, recs]) => {
+                const card = document.createElement('div');
+                card.className = 'inspector-card';
+                card.style.flexDirection = 'column';
+                card.style.alignItems = 'stretch';
+                card.style.gap = '6px';
+
+                if (name === '(ว่าง)') {
+                    // Show staff list with counts
+                    const staffCounts = {};
+                    recs.forEach(r => {
+                        const s = String(r[staffKey] || '').trim() || '(ไม่ระบุ)';
+                        staffCounts[s] = (staffCounts[s] || 0) + 1;
+                    });
+                    const staffSorted = Object.entries(staffCounts).sort((a, b) => b[1] - a[1]);
+                    let html = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="inspector-name" style="color:#f59e0b;">(ว่าง)</span>
+                        <span class="inspector-badge" style="background:#f59e0b;">${recs.length}</span>
+                    </div>`;
+                    html += `<div style="border-top:1px solid #334155; padding-top:4px; display:flex; flex-direction:column; gap:2px;">`;
+                    staffSorted.forEach(([staff, cnt]) => {
+                        html += `<div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8;">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${staff}">${staff}</span>
+                            <span style="flex-shrink:0; margin-left:8px; color:#e2e8f0;">${cnt}</span>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                    card.innerHTML = html;
+                } else {
+                    // Show total / completed / pending
+                    const total = recs.filter(r => String(r.stt_desc || '').trim() !== 'ยกเลิกเคลม').length;
+                    const completed = recs.filter(r => String(r.stt_desc || '').trim() === 'จบงาน').length;
+                    const pending = recs.filter(r => { const s = String(r.stt_desc || '').trim(); return s !== 'จบงาน' && s !== 'ยกเลิกเคลม'; }).length;
+
+                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="inspector-name" title="${name}">${name}</span>
+                        <span class="inspector-badge">${recs.length}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:2px; font-size:11px; border-top:1px solid #334155; padding-top:4px;">
+                        <span style="color:#3b82f6;">Total Claims <b>${total}</b></span>
+                        <span style="color:#22c55e;">Completed <b>${completed}</b></span>
+                        <span style="color:#f59e0b;">Pending <b>${pending}</b></span>
+                    </div>`;
+                }
+
+                grid.appendChild(card);
+            });
+
+            inspectorContainer.appendChild(grid);
         }
 
         // ========== EXPORT XLSX ==========
