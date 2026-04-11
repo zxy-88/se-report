@@ -222,6 +222,7 @@
             display: none;
             flex: 1; min-height: 0;
             flex-direction: column;
+            overflow: auto;
         }
         .dash-cards {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -270,26 +271,34 @@
 
         /* Inspector Cards */
         .inspector-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 8px; padding: 4px 0;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 12px; padding: 4px 0;
         }
         .inspector-card {
-            background: #1e293b; border: 1px solid #334155; border-radius: 10px;
-            padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
-            gap: 10px; transition: border-color 0.15s;
+            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+            padding: 18px 22px; display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; transition: border-color 0.15s;
         }
         .inspector-card:hover { border-color: #3b82f6; }
         .inspector-name {
             font-size: 13px; font-weight: 600; color: #e2e8f0;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word;
         }
         .inspector-badge {
             background: #3b82f6; color: #fff; font-size: 13px; font-weight: 700;
             padding: 2px 10px; border-radius: 20px; flex-shrink: 0;
         }
+        .inspector-progress {
+            width: 100%; height: 8px; background: #334155; border-radius: 999px; overflow: hidden;
+        }
+        .inspector-progress-fill {
+            height: 100%; background: linear-gradient(90deg, #22c55e, #3b82f6);
+            border-radius: 999px; transition: width 0.4s ease;
+        }
         body.light .inspector-card { background: #fff; border-color: #e2e8f0; }
         body.light .inspector-card:hover { border-color: #3b82f6; }
         body.light .inspector-name { color: #1e293b; }
+        body.light .inspector-progress { background: #e2e8f0; }
 
         /* Pivot dark theme */
         #pivotView { overflow: auto; }
@@ -366,6 +375,12 @@
             font-size: 14px; transition: all 0.15s;
         }
         .toolbar-controls button:hover { background: #334155; color: #e2e8f0; }
+        .toolbar-controls .btn-export {
+            width: auto; height: auto; background: #22c55e; color: #fff; border: none;
+            padding: clamp(4px, 0.5vw, 7px) clamp(10px, 1.3vw, 16px);
+            font-size: clamp(11px, 1vw, 13px); font-weight: 600;
+        }
+        .toolbar-controls .btn-export:hover { background: #16a34a; color: #fff; }
         .toolbar-controls .font-label {
             font-size: 11px; color: #64748b; font-weight: 600; margin: 0 2px;
         }
@@ -515,7 +530,6 @@
                 </div>
                 <button type="submit" class="btn-fetch" id="submitBtn">Fetch</button>
             </form>
-            <button class="btn-export" id="exportBtn">Export Excel</button>
             <div class="pill-group" id="viewToggle" style="margin-left:8px;">
                 <input type="radio" name="view" value="table" id="v_table" checked>
                 <label for="v_table">Table</label>
@@ -529,6 +543,7 @@
                 Auto Refresh
             </label>
             <div class="toolbar-controls">
+                <button class="btn-export" id="exportBtn">Export Excel</button>
                 <button id="fontDown" title="ลดขนาดตัวอักษร">A-</button>
                 <span class="font-label" id="fontSizeLabel">13</span>
                 <button id="fontUp" title="เพิ่มขนาดตัวอักษร">A+</button>
@@ -564,7 +579,7 @@
                 </div>
                 <div id="dashFilterInfo" style="margin-bottom:8px; font-size:13px; color:#64748b;"></div>
                 <div class="dash-cards" id="dashCards"></div>
-                <div id="inspectorCards" style="flex:1; min-height:0; overflow:auto;"></div>
+                <div id="inspectorCards"></div>
                 <div class="dash-charts" id="dashCharts"></div>
             </div>
 
@@ -1095,7 +1110,7 @@
 
         function getDashFilteredRecords() {
             if (!lastRecords) return [];
-            return applyColumnFilters(lastRecords);
+            return applyColumnFilters(lastRecords).filter(r => String(r.stt_desc || '').trim() !== 'ยกเลิกเคลม');
         }
 
         function updateDashFilterInfo(total, filtered) {
@@ -1311,11 +1326,10 @@
             updateDashFilterInfo(lastRecords.length, records.length);
 
             if (rt === 'enquiry') {
-                const active = records.filter(r => String(r.stt_desc || '').trim() !== 'ยกเลิกเคลม');
-                const completed = active.filter(r => String(r.stt_desc || '').trim() === 'จบงาน').length;
-                addCard(cards, active.length, 'Total Claims', 'blue', 'total');
+                const completed = records.filter(r => String(r.stt_desc || '').trim() === 'จบงาน').length;
+                const pending = records.length - completed;
+                addCard(cards, records.length, 'Total Claims', 'blue', 'total');
                 addCard(cards, completed, 'Completed', 'green', 'completed');
-                const pending = active.filter(r => { const s = String(r.stt_desc || '').trim(); return s !== 'จบงาน' && s !== 'ยกเลิกเคลม'; }).length;
                 addCard(cards, pending, 'Pending', 'amber', 'time');
             } else if (rt === 'claim') {
                 const closed = records.filter(r => r.close_dt && String(r.close_dt).trim()).length;
@@ -1368,32 +1382,34 @@
                     });
                     const staffSorted = Object.entries(staffCounts).sort((a, b) => b[1] - a[1]);
                     let html = `<div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="inspector-name" style="color:#f59e0b;">(ว่าง)</span>
-                        <span class="inspector-badge" style="background:#f59e0b;">${recs.length}</span>
+                        <span class="inspector-name" style="font-size:24px; font-weight:700; color:#f59e0b;">(ว่าง)</span>
+                        <span class="inspector-badge" style="background:#f59e0b; font-size:18px; padding:4px 14px;">${recs.length}</span>
                     </div>`;
-                    html += `<div style="border-top:1px solid #334155; padding-top:4px; display:flex; flex-direction:column; gap:2px;">`;
+                    html += `<div style="border-top:1px solid #334155; padding-top:10px; display:flex; flex-direction:column; gap:6px;">`;
                     staffSorted.forEach(([staff, cnt]) => {
-                        html += `<div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8;">
-                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${staff}">${staff}</span>
-                            <span style="flex-shrink:0; margin-left:8px; color:#e2e8f0;">${cnt}</span>
+                        html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#94a3b8;">
+                            <span title="${staff}">${staff}</span>
+                            <span style="flex-shrink:0; margin-left:8px; color:#e2e8f0;"><b>${cnt}</b></span>
                         </div>`;
                     });
                     html += `</div>`;
                     card.innerHTML = html;
                 } else {
                     // Show total / completed / pending
-                    const total = recs.filter(r => String(r.stt_desc || '').trim() !== 'ยกเลิกเคลม').length;
+                    const total = recs.length;
                     const completed = recs.filter(r => String(r.stt_desc || '').trim() === 'จบงาน').length;
-                    const pending = recs.filter(r => { const s = String(r.stt_desc || '').trim(); return s !== 'จบงาน' && s !== 'ยกเลิกเคลม'; }).length;
+                    const pending = total - completed;
 
-                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="inspector-name" title="${name}">${name}</span>
-                        <span class="inspector-badge">${recs.length}</span>
+                    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                    card.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <span class="inspector-name" style="font-size:24px; font-weight:700;" title="${name}">${name}</span>
+                        <span style="font-size:16px; font-weight:700; color:#22c55e;">${pct}%</span>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:2px; font-size:11px; border-top:1px solid #334155; padding-top:4px;">
-                        <span style="color:#3b82f6;">Total Claims <b>${total}</b></span>
-                        <span style="color:#22c55e;">Completed <b>${completed}</b></span>
-                        <span style="color:#f59e0b;">Pending <b>${pending}</b></span>
+                    <div class="inspector-progress"><div class="inspector-progress-fill" style="width:${pct}%;"></div></div>
+                    <div style="display:flex; flex-direction:column; gap:6px; font-size:18px; border-top:1px solid #334155; padding-top:10px;">
+                        <div style="display:flex; justify-content:space-between; color:#3b82f6;"><span>Total Claims</span><b>${total}</b></div>
+                        <div style="display:flex; justify-content:space-between; color:#22c55e;"><span>Completed</span><b>${completed}</b></div>
+                        <div style="display:flex; justify-content:space-between; color:#f59e0b;"><span>Pending</span><b>${pending}</b></div>
                     </div>`;
                 }
 

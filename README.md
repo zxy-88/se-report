@@ -37,15 +37,25 @@
    - เลขเซอร์เวย์ขึ้นต้น `SEMS` / `SETP` → บังคับเป็น "นายสราวุธ บุญคุ้ม" (ไม่สน mapping)
    - เลขเซอร์เวย์ขึ้นต้น `SEABI` / `SESV` หรืออื่น ๆ → ใช้ค่าจากรายงาน หรือค้นหาจาก `mapping_supervisor_staff_.json`
 3. **Mapping file** — `mapping_supervisor_staff_.json` เก็บ Supervisor → Staff list ใช้ reverse lookup เมื่อรายงานยังไม่มีชื่อผู้ตรวจสอบงาน
+   - ⚠️ โหลดครั้งเดียวตอน Flask start — หลังแก้ไขต้อง **restart server** ถึงจะ effective
+
+**Dashboard Filtering Rules** (ใช้กับทุก report type ในหน้า Dashboard)
+ทำผ่าน `getDashFilteredRecords()` ใน [templates/index.html](templates/index.html):
+1. รับ `lastRecords` (ข้อมูลหลัง dedup + fill supervisor)
+2. Apply `columnFilters` จาก sidebar (ถ้ามี)
+3. **กรอง `stt_desc === "ยกเลิกเคลม"` ออกทั้งหมด** — ไม่นำมาคำนวณ Summary Cards, Inspector Cards หรือ charts
+4. ผลลัพธ์คือชุดข้อมูลที่ dashboard ทั้งหน้าใช้ร่วมกัน
 
 **Enquiry Dashboard**
 - **Summary Cards:**
-  - Total Claims — นับทุกสถานะ ยกเว้น "ยกเลิกเคลม"
-  - Completed — เฉพาะสถานะ "จบงาน"
-  - Pending — ทุกสถานะ ยกเว้น "จบงาน" และ "ยกเลิกเคลม"
-- **Inspector Cards** — แสดงรายชื่อผู้ตรวจสอบงาน (เรียงมากไปน้อย) แต่ละคนแสดง:
-  - Total Claims / Completed / Pending (กรองตาม stt_desc เหมือน Summary Cards)
-  - การ์ด "(ว่าง)" แสดงรายชื่อพนักงานตรวจสอบ + จำนวนเรื่องแต่ละคน
+  - Total Claims — จำนวน records ทั้งหมด (หลังกรองยกเลิกเคลมแล้ว)
+  - Completed — เฉพาะสถานะ `stt_desc === "จบงาน"`
+  - Pending — ส่วนที่เหลือ (Total − Completed)
+- **Inspector Cards** — แสดงรายชื่อผู้ตรวจสอบงาน (เรียงมากไปน้อย) การ์ดใหญ่ 420px+ แต่ละคนแสดง:
+  - ชื่อ + **% Progress** (Completed ÷ Total × 100)
+  - **Progress bar** gradient เขียว→ฟ้า ยาวตาม %
+  - Total Claims / Completed / Pending
+  - การ์ด "(ว่าง)" แสดงรายชื่อพนักงานตรวจสอบ + จำนวนเรื่องแต่ละคน (font-size เดียวกับการ์ดอื่น)
 
 **Claim Report Dashboard**
 - Cards: Total Claims / Total Cost (฿) / Avg Cost (฿) / Closed Cases
@@ -157,3 +167,9 @@ docker run -p 5000:5000 --env-file .env se-report
 - [x] Dashboard header + นาฬิกา realtime, ซ่อน sidebar อัตโนมัติ
 - [x] Auto Refresh ดึงข้อมูลใหม่ทุก 5 นาที
 - [x] Responsive toolbar + dashboard (clamp font/icon ตาม viewport)
+- [x] Inspector Cards ขยายเป็นการ์ดใหญ่ (min 420px), font ชื่อ 24px, ไม่ตัดชื่อด้วย ellipsis
+- [x] Inspector Cards เพิ่ม Progress Bar + % completion (gradient เขียว→ฟ้า)
+- [x] Inspector Cards ลบคำว่า "เรื่อง" ออกจากตัวเลข, การ์ด "(ว่าง)" ใช้ font-size เดียวกับการ์ดอื่น
+- [x] Dashboard กรอง `stt_desc === "ยกเลิกเคลม"` ออกทั้งหมด (ผ่าน `getDashFilteredRecords()`) — ไม่คำนวณและไม่แสดงในทุก card/chart
+- [x] Dashboard scrollbar เดียวที่ `#dashboardView` (แทนที่ inner scroll ใน `#inspectorCards`)
+- [x] ย้ายปุ่ม Export Excel เข้า `.toolbar-controls` ก่อนปุ่ม A-/A+ (override CSS ไม่ให้ถูกบีบเป็นสี่เหลี่ยมจัตุรัส)
